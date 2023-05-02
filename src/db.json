@@ -1,0 +1,26 @@
+{
+  "Data": [
+    {
+      "id": 1,
+      "fullName": "Sebastian",
+      "address": "fsdfsdfsdf",
+      "phoneNumber": "1234567890",
+      "email": "sebastian@codingthesmartway.com"
+    },
+    {
+      "id": 2,
+      "fullName": "Steve",
+      "address": "fsdfsdfsdf",
+      "phoneNumber": "1234567890",
+      "email": "steve@codingthesmartway.com"
+    },
+    {
+      "id": 3,
+      "fullName": "Ann",
+      "address": "fsdfsdfsdf",
+      "phoneNumber": "1234567890",
+      "email": "ann@codingthesmartway.com"
+    }
+    
+  ]
+}
