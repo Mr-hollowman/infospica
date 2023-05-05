@@ -1,199 +1,149 @@
-import React, { useState, Fragment} from "react";
-import { nanoid } from "nanoid";
+import React, { useState, Fragment, useEffect } from "react";
 import "./App.css";
-import  {Data} from "./db.json";
 import ReadOnlyRow from "./components/ReadOnlyRow";
 import EditableRow from "./components/EditableRow";
 import axios from "axios";
 
 const App = () => {
 
-  const [contacts, setContacts] = useState(Data);
-  const [addFormData, setAddFormData] = useState({
-    fullName: "",
-    address: "",
-    phoneNumber: "",
-    email: "",
-  })
- 
+    const [contacts, setContacts] = useState([]);
+    const [editContactId, setEditContactId] = useState(null);
+    const [tableData, setTableData] = useState(null)
+    const [editFormData, setEditFormData] = useState(null);
+    const [resetContacts, setResetContacts] = useState(0)
 
-  const [editFormData, setEditFormData] = useState({
-    fullName: "",
-    address: "",
-    phoneNumber: "",
-    email: "",
-  });
+    const handleAddFormChange = (e) => {
+        setTableData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    }
+    const handleAddFormSubmit = (e) => {
+        e.preventDefault()
+        e.target.reset()
+        axios.post('http://localhost:3000/data', { ...tableData }).then(()=>{
+          setResetContacts(contacts+1)
+        })
+    }
 
-  const [editContactId, setEditContactId] = useState(null);
+    const handleDeleteClick = (id) => {
+        axios.delete(`http://localhost:3000/data/${id}`).then(()=>{
+          setResetContacts(contacts+1)
+        })
+    }
 
-  const handleAddForm = (event) => {
-    event.preventDefault();
 
-    const fieldName = event.target.getAttribute("name");
-    const fieldValue = event.target.value;
-
-    const newFormData = { ...addFormData };
-    newFormData[fieldName] = fieldValue;
-    
-   
-    axios.post('http://localhost:3000/Data',newFormData).then((res)=>{
-      console.log(res)}).catch((error)=>{
-        console.log(error)
-        setAddFormData(newFormData);
-    });
-    
-    
-  }
-
-  const handleEditFormChange = (event) => {
-    event.preventDefault();
-
-    const fieldName = event.target.getAttribute("name");
-    const fieldValue = event.target.value;
-
-    const newFormData = { ...editFormData };
-    newFormData[fieldName] = fieldValue;
-
-    setEditFormData(newFormData);
-  };
-
-  const handleAddFormSubmit = (event) => {
-    event.preventDefault();
-
-    const newContact = {
-      id: nanoid(),
-      fullName: addFormData.fullName,
-      address: addFormData.address,
-      phoneNumber: addFormData.phoneNumber,
-      email: addFormData.email,
+    const handleEditClick = (event, contact) => {
+        event.preventDefault();
+        setEditContactId(contact.id);
+        setEditFormData({...contact});
     };
 
-    const newContacts = [...contacts, newContact];
-   
-    setContacts(newContacts);
-  };
-
-  const handleEditFormSubmit = (event) => {
-    event.preventDefault();
-
-    const editedContact = {
-      id: editContactId,
-      fullName: editFormData.fullName,
-      address: editFormData.address,
-      phoneNumber: editFormData.phoneNumber,
-      email: editFormData.email,
+    const handleEditFormChange = (e) => {
+        e.preventDefault();
+        setEditFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const newContacts = [...contacts];
-
-    const index = contacts.findIndex((contact) => contact.id === editContactId);
-
-    newContacts[index] = editedContact;
-
-    setContacts(newContacts);
-    setEditContactId(null);
-  };
-
-  const handleEditClick = (event, contact) => {
-    event.preventDefault();
-    setEditContactId(contact.id);
-
-    const formValues = {
-      fullName: contact.fullName,
-      address: contact.address,
-      phoneNumber: contact.phoneNumber,
-      email: contact.email,
+    const handleCancelClick = () => {
+        setEditContactId(null);
     };
 
-    setEditFormData(formValues);
-  };
+    const handleEditFormSubmit = (e) => {
+        e.preventDefault()
+        if (isTableEdited()) {
+            axios.put(`http://localhost:3000/data/${editContactId}`, { ...editFormData }).then(()=>{
+              setResetContacts(contacts+1)
+            })
+        }
+        else{
+            setEditContactId(null)
+            setEditFormData(null)
+        }
+    }
 
-  const handleCancelClick = () => {
-    setEditContactId(null);
-  };
+    const isTableEdited = () => {
+        const toEdit = editContactId && contacts && contacts.filter((item) => item.id === editContactId)
+        return JSON.stringify(toEdit[0]) !== JSON.stringify(editFormData)
+    }
 
-  const handleDeleteClick = (contactId) => {
-    const newContacts = [...contacts];
+    useEffect(() => {
+        axios.get('http://localhost:3000/data').then((res) => {
+            setContacts(res.data)
+        })
+    }, [resetContacts])
+    return (
+        <div className="container">
+            <form onSubmit={handleEditFormSubmit}>
+                <table className="table table-hover">
+                    <thead className="table-dark">
+                        <tr>
+                            <th>Name</th>
+                            <th>Address</th>
+                            <th>Phone Number</th>
+                            <th>Email</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {contacts.map((contact, index) => (
+                            <Fragment key={index}>
+                                {editContactId === contact.id ? (
+                                    <EditableRow
+                                        editFormData={editFormData}
+                                        handleEditFormChange={handleEditFormChange}
+                                        handleCancelClick={handleCancelClick}
+                                    />
+                                ) : (
+                                    <ReadOnlyRow
+                                        contact={contact}
+                                        handleEditClick={handleEditClick}
+                                        handleDeleteClick={handleDeleteClick}
+                                    />
+                                )}
+                            </Fragment>
+                        ))}
+                    </tbody>
+                </table>
+            </form>
 
-    const index = contacts.findIndex((contact) => contact.id === contactId);
+            <h2>Add a Contact</h2>
+            <form onSubmit={handleAddFormSubmit}>
+                <input
+                    className="form-control"
+                    type="text"
+                    name="fullName"
+                    required="required"
+                    placeholder="Enter a name..."
+                    onChange={handleAddFormChange}
+                />
+                <input
+                    className="form-control"
+                    type="text"
+                    name="address"
+                    required="required"
+                    placeholder="Enter an addres..."
+                    onChange={handleAddFormChange}
+                />
+                <input
+                    className="form-control"
+                    type="phone"
+                    pattern="[0-9]{10}"
+                    format="1234567890"
+                    name="phoneNumber"
+                    required="required"
+                    placeholder="Enter a phone number..."
+                    onChange={handleAddFormChange}
+                />
 
-    newContacts.splice(index, 1);
-
-    setContacts(newContacts);
-  };
-
-  return (
-    <div className="app-container">
-      <form onSubmit={handleEditFormSubmit}>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Address</th>
-              <th>Phone Number</th>
-              <th>Email</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contacts.map((contact) => (
-              <Fragment>
-                {editContactId === contact.id ? (
-                  <EditableRow
-                    editFormData={editFormData}
-                    handleEditFormChange={handleEditFormChange}
-                    handleCancelClick={handleCancelClick}
-                  />
-                ) : (
-                  <ReadOnlyRow
-                    contact={contact}
-                    handleEditClick={handleEditClick}
-                    handleDeleteClick={handleDeleteClick}
-                  />
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </form>
-
-      <h2>Add a Contact</h2>
-      <form onSubmit={handleAddFormSubmit}>
-        <input
-          type="text"
-          name="fullName"
-          required="required"
-          placeholder="Enter a name..."
-          onSubmit={handleAddForm}
-        />
-        <input
-          type="text"
-          name="address"
-          required="required"
-          placeholder="Enter an addres..."
-          onSubmit={handleAddForm}
-        />
-        <input
-          type="phone"
-          pattern="[0-9]{10}"
-          Format="1234567890"
-          name="phoneNumber"
-          required="required"
-          placeholder="Enter a phone number..."
-          onSubmit={handleAddForm}
-        />
-        
-        <input
-          type="email"
-          name="email"
-          required="required"
-          placeholder="Enter an email..."
-          onSubmit={handleAddForm}
-        />
-        <button type="submit">Add</button>
-      </form>
-    </div>
-  );
+                <input
+                    className="form-control"
+                    type="email"
+                    name="email"
+                    required="required"
+                    placeholder="Enter an email..."
+                    onChange={handleAddFormChange}
+                />
+                <button type="submit" className="btn btn-primary">Add</button>
+            </form>
+        </div>
+    );
 };
 
 export default App;
